@@ -15,7 +15,6 @@ services:
     dockerContext: .
     healthCheckPath: /api/v1/health/
     autoDeployTrigger: commit
-    maxShutdownDelaySeconds: 30
     envVars:
       - key: DATABASE_URL
         fromDatabase:

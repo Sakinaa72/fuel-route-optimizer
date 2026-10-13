@@ -2,6 +2,8 @@ import json
 import re
 from pathlib import Path
 
+import yaml
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -45,3 +47,13 @@ def test_docker_files_reference_existing_sources():
     assert 'ENTRYPOINT ["sh", "/app/scripts/docker-entrypoint.sh"]' in (ROOT / "Dockerfile").read_text()
     assert "--require-hashes" in (ROOT / "Dockerfile").read_text()
     assert "./data:/app/input:ro" in (ROOT / "docker-compose.yml").read_text()
+
+
+def test_render_free_plan_avoids_paid_only_shutdown_setting():
+    blueprint = yaml.safe_load((ROOT / "render.yaml").read_text())
+    assert all(database["plan"] == "free" for database in blueprint["databases"])
+    for service in blueprint["services"]:
+        assert service["plan"] == "free"
+        # Render's deployment validator rejects even the default value on free plans.
+        assert "maxShutdownDelaySeconds" not in service
+        assert service["healthCheckPath"] == "/api/v1/health/"
