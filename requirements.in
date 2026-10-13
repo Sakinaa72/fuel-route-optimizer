@@ -1,0 +1,17 @@
+Django==6.1.2
+djangorestframework==3.18.3
+httpx==0.28.1
+shapely==2.2.0
+pyproj==3.8.0
+python-dotenv==1.2.4
+gunicorn==26.2.0
+filelock==4.1.1
+pyshp==3.1.6
+pytest==9.1.1
+pytest-django==4.14.0
+ruff==0.17.0
+dj-database-url==3.1.2
+psycopg[binary]==3.3.6
+whitenoise==6.12.0
+PyYAML==6.0.3
+jsonschema==4.26.0

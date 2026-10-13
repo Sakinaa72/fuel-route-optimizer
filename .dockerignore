@@ -1,0 +1,16 @@
+.git
+.venv
+.uv-cache
+.env
+__pycache__
+.pytest_cache
+.ruff_cache
+var
+staticfiles
+*.sqlite3*
+data/fuel-prices-for-be-assessment.csv
+data/geographic/raw
+data/geographic/us-states.geojson
+data/geographic/manifest.json
+docs/demo-preview.png
+docs/demo-long-preview.png

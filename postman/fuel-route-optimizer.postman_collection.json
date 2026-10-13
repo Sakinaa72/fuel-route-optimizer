@@ -1,0 +1,244 @@
+{
+  "info": {
+    "name": "Fuelway \u00b7 Fuel Route Optimizer",
+    "description": "Verified against the original assessment CSV and live OSRM. Census station coordinates are approximate. Default Austin/Dallas and Miami/Ellensburg examples succeeded. Failure simulation remains local and opt-in.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:8000"
+    },
+    {
+      "key": "short_start",
+      "value": "Austin, TX"
+    },
+    {
+      "key": "short_finish",
+      "value": "Dallas, TX"
+    },
+    {
+      "key": "long_start",
+      "value": "Miami, FL"
+    },
+    {
+      "key": "long_finish",
+      "value": "Ellensburg, WA"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health and dataset readiness",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/api/v1/health/",
+        "description": "No external calls. Dataset readiness must be true before success requests."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"JSON response\", () => pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\"));",
+              "pm.test(\"Dataset ready\", () => pm.expect(pm.response.json().ready_to_plan).to.eql(true));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Successful route \u00b7 supplied prices",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/v1/route/plan/",
+        "description": "Verified with the supplied 8,151-row CSV: Austin, TX to Dallas, TX. Regenerate route variables with scripts/find_demo_routes.py if the dataset or provider changes.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"start\": \"{{short_start}}\",\n  \"finish\": \"{{short_finish}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"JSON response\", () => pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\"));",
+              "const data = pm.response.json();",
+              "pm.test(\"Real LineString and endpoints\", () => { pm.expect(data.route.geometry.type).to.eql(\"LineString\"); pm.expect(data.route.geometry.coordinates.length).to.be.above(1); pm.expect(data.route.origin.latitude).to.be.a(\"number\"); pm.expect(data.route.destination.longitude).to.be.a(\"number\"); });",
+              "pm.test(\"Every leg fits the range\", () => { pm.expect(data.optimization.all_legs_within_max_range).to.eql(true); data.fuel_summary.legs.forEach(leg => pm.expect(leg.distance_miles).to.be.at.most(data.vehicle.max_range_miles + 0.0001)); });",
+              "pm.test(\"Cost includes every leg\", () => { const sum = data.fuel_summary.legs.reduce((total,leg) => total + leg.cost_usd,0); pm.expect(Math.abs(sum-data.fuel_summary.estimated_total_fuel_cost_usd)).to.be.below(0.005); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Long route \u00b7 multiple stops",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/v1/route/plan/",
+        "description": "Verified with the supplied CSV: Miami, FL to Ellensburg, WA, with 15 modeled fuel stops. Use scripts/find_demo_routes.py to regenerate verified variables.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"start\": \"{{long_start}}\",\n  \"finish\": \"{{long_finish}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"JSON response\", () => pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\"));",
+              "const data = pm.response.json();",
+              "pm.test(\"Real LineString and endpoints\", () => { pm.expect(data.route.geometry.type).to.eql(\"LineString\"); pm.expect(data.route.geometry.coordinates.length).to.be.above(1); pm.expect(data.route.origin.latitude).to.be.a(\"number\"); pm.expect(data.route.destination.longitude).to.be.a(\"number\"); });",
+              "pm.test(\"Every leg fits the range\", () => { pm.expect(data.optimization.all_legs_within_max_range).to.eql(true); data.fuel_summary.legs.forEach(leg => pm.expect(leg.distance_miles).to.be.at.most(data.vehicle.max_range_miles + 0.0001)); });",
+              "pm.test(\"Cost includes every leg\", () => { const sum = data.fuel_summary.legs.reduce((total,leg) => total + leg.cost_usd,0); pm.expect(Math.abs(sum-data.fuel_summary.estimated_total_fuel_cost_usd)).to.be.below(0.005); });",
+              "pm.test(\"Multiple fuel stops\", () => pm.expect(data.fuel_stops.length).to.be.at.least(2));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Missing finish validation",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/v1/route/plan/",
+        "description": "Works independently of fuel data and routing.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"start\": \"Austin, TX\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "pm.test(\"JSON response\", () => pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\"));",
+              "pm.test(\"Stable error\", () => pm.expect(pm.response.json().error.code).to.eql(\"validation_error\"));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Unsupported non-US location",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/v1/route/plan/",
+        "description": "Requires dataset readiness so endpoint validation reaches the geographic service; London must be rejected.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"start\": {\n    \"latitude\": 51.5074,\n    \"longitude\": -0.1278\n  },\n  \"finish\": \"Dallas, TX\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "pm.test(\"JSON response\", () => pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\"));",
+              "pm.test(\"Non-US error\", () => pm.expect(pm.response.json().error.code).to.eql(\"non_us_location\"));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Simulated upstream timeout \u00b7 local opt-in",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-Demo-Upstream-Failure",
+            "value": "timeout"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/v1/route/plan/",
+        "description": "Set DJANGO_DEBUG=true and ENABLE_FAILURE_DEMO=true, then restart. Disabled by default and always disabled outside DEBUG. Does not call OSRM.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"start\": \"Austin, TX\",\n  \"finish\": \"Dallas, TX\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 503\", () => pm.response.to.have.status(503));",
+              "pm.test(\"JSON response\", () => pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\"));",
+              "pm.test(\"Simulated timeout\", () => pm.expect(pm.response.json().error.code).to.eql(\"osrm_timeout\"));"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

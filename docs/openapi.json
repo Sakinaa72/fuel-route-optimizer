@@ -1,0 +1,635 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Fuelway Fuel Route Optimization API",
+    "version": "1.0.0",
+    "description": "Imported assessment prices; approximate Census station locations; outgoing segment estimate including departure inventory. OSRM geometry is cached; no per-station external calls."
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "The current application host"
+    }
+  ],
+  "paths": {
+    "/api/v1/route/plan/": {
+      "post": {
+        "operationId": "planRoute",
+        "summary": "Plan a US driving route and estimated fuel stops",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlanRequest"
+              },
+              "example": {
+                "start": "Austin, TX",
+                "finish": "Dallas, TX"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Minimum estimated segment-price plan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or non-US endpoint",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Location or driving route not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "No departure price or no feasible refueling plan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Request rate limit exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Upstream provider error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dataset unavailable, provider busy or timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/health/": {
+      "get": {
+        "operationId": "health",
+        "summary": "Local liveness and dataset readiness; no external calls",
+        "responses": {
+          "200": {
+            "description": "Application state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "status",
+                    "fuel_dataset_loaded",
+                    "stations_total",
+                    "stations_located",
+                    "ready_to_plan"
+                  ],
+                  "properties": {
+                    "status": {
+                      "const": "ok"
+                    },
+                    "fuel_dataset_loaded": {
+                      "type": "boolean"
+                    },
+                    "stations_total": {
+                      "type": "integer"
+                    },
+                    "stations_located": {
+                      "type": "integer"
+                    },
+                    "stations_unresolved": {
+                      "type": "integer"
+                    },
+                    "ready_to_plan": {
+                      "type": "boolean"
+                    },
+                    "geographic_data_ready": {
+                      "type": "boolean"
+                    },
+                    "required_action": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Database unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "PlanRequest": {
+        "type": "object",
+        "required": [
+          "start",
+          "finish"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "start": {
+            "oneOf": [
+              {
+                "type": "string",
+                "minLength": 2,
+                "maxLength": 300
+              },
+              {
+                "type": "object",
+                "required": [
+                  "latitude",
+                  "longitude"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "latitude": {
+                    "type": "number",
+                    "minimum": -90,
+                    "maximum": 90
+                  },
+                  "longitude": {
+                    "type": "number",
+                    "minimum": -180,
+                    "maximum": 180
+                  }
+                }
+              }
+            ]
+          },
+          "finish": {
+            "oneOf": [
+              {
+                "type": "string",
+                "minLength": 2,
+                "maxLength": 300
+              },
+              {
+                "type": "object",
+                "required": [
+                  "latitude",
+                  "longitude"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "latitude": {
+                    "type": "number",
+                    "minimum": -90,
+                    "maximum": 90
+                  },
+                  "longitude": {
+                    "type": "number",
+                    "minimum": -180,
+                    "maximum": 180
+                  }
+                }
+              }
+            ]
+          },
+          "max_range_miles": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 1000,
+            "default": 500
+          },
+          "miles_per_gallon": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 10
+          },
+          "max_station_detour_miles": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 50,
+            "default": 20
+          }
+        }
+      },
+      "PlanResponse": {
+        "type": "object",
+        "required": [
+          "route",
+          "vehicle",
+          "fuel_summary",
+          "fuel_stops",
+          "optimization",
+          "attribution"
+        ],
+        "properties": {
+          "route": {
+            "type": "object",
+            "required": [
+              "origin",
+              "destination",
+              "distance_miles",
+              "duration_minutes",
+              "geometry"
+            ],
+            "properties": {
+              "origin": {
+                "type": "object",
+                "required": [
+                  "address",
+                  "latitude",
+                  "longitude",
+                  "coordinate_source"
+                ],
+                "properties": {
+                  "address": {
+                    "type": "string"
+                  },
+                  "latitude": {
+                    "type": "number"
+                  },
+                  "longitude": {
+                    "type": "number"
+                  },
+                  "coordinate_source": {
+                    "type": "string"
+                  }
+                }
+              },
+              "destination": {
+                "type": "object",
+                "required": [
+                  "address",
+                  "latitude",
+                  "longitude",
+                  "coordinate_source"
+                ],
+                "properties": {
+                  "address": {
+                    "type": "string"
+                  },
+                  "latitude": {
+                    "type": "number"
+                  },
+                  "longitude": {
+                    "type": "number"
+                  },
+                  "coordinate_source": {
+                    "type": "string"
+                  }
+                }
+              },
+              "distance_miles": {
+                "type": "number"
+              },
+              "duration_minutes": {
+                "type": "number"
+              },
+              "geometry": {
+                "type": "object",
+                "required": [
+                  "type",
+                  "coordinates"
+                ],
+                "properties": {
+                  "type": {
+                    "const": "LineString"
+                  },
+                  "coordinates": {
+                    "type": "array",
+                    "minItems": 2,
+                    "items": {
+                      "type": "array",
+                      "minItems": 2,
+                      "maxItems": 2,
+                      "prefixItems": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "vehicle": {
+            "type": "object",
+            "properties": {
+              "max_range_miles": {
+                "type": "number"
+              },
+              "miles_per_gallon": {
+                "type": "number"
+              },
+              "derived_tank_capacity_gallons": {
+                "type": "number"
+              }
+            }
+          },
+          "fuel_summary": {
+            "type": "object",
+            "required": [
+              "total_fuel_consumed_gallons",
+              "estimated_total_fuel_cost_usd",
+              "legs",
+              "departure_price_source",
+              "cost_model"
+            ],
+            "properties": {
+              "total_fuel_consumed_gallons": {
+                "type": "number"
+              },
+              "estimated_total_fuel_cost_usd": {
+                "type": "number"
+              },
+              "estimated_cost_per_mile_usd": {
+                "type": "number"
+              },
+              "departure_fuel_value_usd": {
+                "type": "number"
+              },
+              "estimated_en_route_allocated_fuel_cost_usd": {
+                "type": "number"
+              },
+              "legs": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "sequence",
+                    "source_type",
+                    "price_source_station_id",
+                    "start_offset_miles",
+                    "end_offset_miles",
+                    "distance_miles",
+                    "gallons",
+                    "retail_price_usd_per_gallon",
+                    "cost_usd"
+                  ],
+                  "properties": {
+                    "start_offset_miles": {
+                      "type": "number"
+                    },
+                    "end_offset_miles": {
+                      "type": "number"
+                    },
+                    "distance_miles": {
+                      "type": "number"
+                    },
+                    "gallons": {
+                      "type": "number"
+                    },
+                    "retail_price_usd_per_gallon": {
+                      "type": "number"
+                    },
+                    "cost_usd": {
+                      "type": "number"
+                    },
+                    "sequence": {
+                      "type": "integer"
+                    },
+                    "source_type": {
+                      "enum": [
+                        "departure_inventory",
+                        "fuel_stop"
+                      ]
+                    },
+                    "price_source_station_id": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              },
+              "departure_price_source": {
+                "$ref": "#/components/schemas/Station"
+              },
+              "cost_model": {
+                "type": "string"
+              },
+              "currency": {
+                "const": "USD"
+              },
+              "volume_unit": {
+                "const": "US gallons"
+              }
+            }
+          },
+          "fuel_stops": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FuelStop"
+            }
+          },
+          "optimization": {
+            "type": "object",
+            "properties": {
+              "objective": {
+                "const": "minimize_estimated_fuel_cost"
+              },
+              "all_legs_within_max_range": {
+                "type": "boolean"
+              },
+              "candidates_evaluated": {
+                "type": "integer"
+              },
+              "route_cache_hit": {
+                "type": "boolean"
+              },
+              "assumptions": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "attribution": {
+            "type": "object"
+          }
+        }
+      },
+      "Station": {
+        "type": "object",
+        "required": [
+          "station_id",
+          "name",
+          "address",
+          "city",
+          "state",
+          "latitude",
+          "longitude",
+          "coordinate_source",
+          "retail_price_usd_per_gallon",
+          "route_offset_miles",
+          "distance_from_route_miles"
+        ],
+        "properties": {
+          "station_id": {
+            "type": "integer"
+          },
+          "source_truckstop_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "address": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          },
+          "latitude": {
+            "type": "number"
+          },
+          "longitude": {
+            "type": "number"
+          },
+          "coordinate_source": {
+            "type": "string"
+          },
+          "coordinate_reference": {
+            "type": "string"
+          },
+          "retail_price_usd_per_gallon": {
+            "type": "number"
+          },
+          "route_offset_miles": {
+            "type": "number"
+          },
+          "distance_from_route_miles": {
+            "type": "number"
+          }
+        }
+      },
+      "FuelStop": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Station"
+          },
+          {
+            "type": "object",
+            "required": [
+              "sequence",
+              "estimated_leg_distance_miles",
+              "estimated_leg_gallons",
+              "estimated_leg_cost_usd",
+              "reason_selected"
+            ],
+            "properties": {
+              "sequence": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "estimated_leg_distance_miles": {
+                "type": "number"
+              },
+              "estimated_leg_gallons": {
+                "type": "number"
+              },
+              "estimated_leg_cost_usd": {
+                "type": "number"
+              },
+              "reason_selected": {
+                "type": "string"
+              }
+            }
+          }
+        ]
+      },
+      "Error": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message",
+              "details",
+              "request_id"
+            ],
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {
+                "type": "object"
+              },
+              "request_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

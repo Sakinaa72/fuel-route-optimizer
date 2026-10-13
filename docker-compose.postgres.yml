@@ -1,0 +1,36 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: fuel_optimizer
+      POSTGRES_USER: fuel_optimizer
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Generate var/postgres-check.env first}
+    volumes:
+      - postgres-check-data:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U fuel_optimizer -d fuel_optimizer"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+  web:
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file: var/postgres-check.env
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?Generate var/postgres-check.env first}
+      DJANGO_DEBUG: "false"
+      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1,testserver
+      DJANGO_SECURE_SSL_REDIRECT: "false"
+      AUTO_INITIALIZE_DATA: "true"
+      FUEL_PRICES_CSV: /app/input/fuel-prices-for-be-assessment.csv
+      WEB_CONCURRENCY: "1"
+    ports:
+      - "127.0.0.1:8003:8000"
+    volumes:
+      - ./data:/app/input:ro
+      - postgres-check-state:/app/var
+volumes:
+  postgres-check-data:
+  postgres-check-state:

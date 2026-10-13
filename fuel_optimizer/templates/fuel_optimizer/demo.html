@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <title>Fuelway · Route fuel planner</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <style>
+    :root{--ink:#18322d;--green:#176c50;--muted:#6b7770;--line:#dce4dd;--cream:#f5f6ef}*{box-sizing:border-box}body{margin:0;background:var(--cream);color:var(--ink);font:15px system-ui,-apple-system,sans-serif}header{padding:20px 5%;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;background:#fff}.brand{font-size:23px;font-weight:750;letter-spacing:-1px}.brand span{color:var(--green)}a{color:var(--green)}header nav{display:flex;gap:22px;font-size:13px}main{max-width:1480px;margin:auto;padding:34px 5% 24px}.eyebrow{text-transform:uppercase;font-size:11px;letter-spacing:2px;color:var(--green);font-weight:750}h1{font-size:clamp(28px,4vw,42px);font-weight:650;letter-spacing:-1.7px;margin:10px 0}p{color:var(--muted);line-height:1.6}.intro{margin-bottom:25px}.workspace{display:grid;grid-template-columns:350px minmax(0,1fr);gap:22px}.panel{border:1px solid var(--line);border-radius:15px;background:#fff;overflow:hidden}.controls{padding:24px}h2{font-size:17px;margin:0 0 20px}label{display:block;font-size:12px;font-weight:650;margin:17px 0 8px}input{width:100%;font:inherit;border:1px solid #cfdad1;border-radius:8px;padding:12px;color:var(--ink);background:#fbfcf9}input:focus{outline:2px solid #86c3a8;outline-offset:1px}button{width:100%;margin-top:23px;border:0;border-radius:9px;background:var(--green);color:white;padding:14px;font:650 14px system-ui;cursor:pointer}button:disabled{opacity:.6;cursor:wait}.defaults{display:flex;gap:10px;margin-top:18px;font-size:11px}.chip{background:#eff4ee;padding:7px;border-radius:5px}.note{font-size:12px;padding-top:16px;margin-top:20px;border-top:1px solid var(--line)}#error{color:#9d2925;background:#fff0ee;padding:12px;border-radius:8px;margin-top:16px;font-size:13px}#error:empty{display:none}#status{font-size:12px;margin:14px 0 0;min-height:16px}.map-panel{position:relative;min-height:510px}#map{height:510px;width:100%;background:#e7eee6}.map-label{position:absolute;z-index:700;top:14px;right:14px;background:#fff;padding:8px 12px;border-radius:6px;box-shadow:0 2px 8px #17352a12;font-size:11px;pointer-events:none}.summary{display:grid;grid-template-columns:repeat(4,1fr);padding:22px;gap:20px;border-top:1px solid var(--line)}.metric small{display:block;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:7px}.metric strong{font-size:22px;font-weight:650}.metric em{font-style:normal;font-size:11px;color:var(--muted);margin-left:3px}.stop-section{margin-top:24px}#stops{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}.stop-card{padding:18px;border:1px solid var(--line);border-radius:10px;background:#fff}.stop-card h3{margin:0 0 8px;font-size:14px}.stop-card p{font-size:12px;margin:4px 0}.marker{border:3px solid white;border-radius:50%;background:var(--green);color:#fff;font:bold 12px system-ui;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px #17352a44}.marker.end{background:#243c56}.marker.start{background:#1f8160}.marker.stop{background:#d88433}footer{display:flex;justify-content:space-between;gap:20px;padding-top:25px;font-size:11px;color:var(--muted)}.hidden{display:none}#coverage{margin-top:14px;color:#936222;font-size:12px}.leaflet-popup-content{line-height:1.65}@media(max-width:950px){.workspace{grid-template-columns:290px minmax(0,1fr)}.summary{grid-template-columns:repeat(2,1fr)}}@media(max-width:700px){main{padding:25px 18px}.workspace{grid-template-columns:1fr}#map{height:400px}.map-panel{min-height:400px}.summary{padding:18px}.intro p{font-size:13px}header{padding:16px 18px}footer{flex-direction:column;gap:8px}}
+  </style>
+</head>
+<body>
+  <header><div class="brand">fuel<span>way</span> ↗</div><nav><a href="/docs/">API docs</a><a href="/api/v1/health/">Health</a></nav></header>
+  <main>
+    <section class="intro"><div class="eyebrow">Go further. Plan smarter.</div><h1>A better way to fuel your journey.</h1><p>Follow your driving route. Find feasible fuel stops. Understand the estimated cost.</p></section>
+    <div class="workspace">
+      <aside class="panel controls"><h2>Plan your trip</h2><form id="planner">
+        <label for="start">Starting point</label><input id="start" name="start" value="Austin, TX" placeholder="City, state or US address" required maxlength="300">
+        <label for="finish">Destination</label><input id="finish" name="finish" value="Dallas, TX" placeholder="City, state or US address" required maxlength="300">
+        <button id="submit" type="submit">Find my fuel stops ↗</button>
+        <div class="defaults"><span class="chip">500 mi range</span><span class="chip">10 mpg</span><span class="chip">50 gal tank</span></div>
+      </form><div id="status" role="status" aria-live="polite">Ready when you are.</div><div id="error" role="alert"></div><div id="coverage"></div>
+      <p class="note">Prices come from the imported assessment CSV. Station markers use approximate Census place locations; verify actual truck stop access. Estimated cost includes departure fuel and excludes road detours.</p></aside>
+      <section class="panel map-panel" aria-label="Trip map"><div class="map-label">Driving route · OpenStreetMap</div><div id="map"></div>
+        <div class="summary"><div class="metric"><small>Route distance</small><strong id="distance">—</strong><em>mi</em></div><div class="metric"><small>Driving time</small><strong id="duration">—</strong><em>hr</em></div><div class="metric"><small>Fuel consumed</small><strong id="fuel">—</strong><em>gal</em></div><div class="metric"><small>Estimated fuel cost</small><strong id="cost">—</strong></div></div>
+      </section>
+    </div>
+    <section class="stop-section hidden" id="stop-section"><h2>Your fuel plan</h2><div id="stops"></div></section>
+    <footer><span>USD · US gallons · Estimated segment-price model</span><span>Map data © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a> · Locations: US Census Bureau · Routing: OSRM</span></footer>
+  </main>
+  {{ map_tile_url|json_script:"tile-url" }}
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const $ = id => document.getElementById(id);
+    const escapeHTML = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const priceText = value => new Intl.NumberFormat('en-US',{minimumFractionDigits:3,maximumFractionDigits:8}).format(value);
+    const money = value => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(value);
+    let map, layers;
+    try {
+      map = L.map('map').setView([36.5,-96.5],4);
+      L.tileLayer(JSON.parse($('tile-url').textContent),{maxZoom:18,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>'}).addTo(map);
+      layers = L.featureGroup().addTo(map);
+    } catch (error) { $('error').textContent='Map assets could not load. The API remains available through API docs.'; }
+    function marker(point, label, kind, popup) {
+      return L.marker([point.latitude,point.longitude],{icon:L.divIcon({className:'marker '+kind,html:escapeHTML(label),iconSize:[30,30]})}).bindPopup(popup).addTo(layers);
+    }
+    fetch('/api/v1/health/').then(r=>r.json()).then(data=>{
+      if(!data.fuel_dataset_loaded) $('coverage').textContent='Setup needed: '+(data.geographic_data_ready?'':'prepare Census locations and ')+'import the supplied fuel-price CSV. See API docs.';
+      else if(!data.ready_to_plan) $('coverage').textContent='No usable station locations. Prepare Census locations and reimport the CSV. See API docs.';
+      else $('coverage').textContent=data.stations_located.toLocaleString()+' stations with approximate locations available.';
+    }).catch(()=>{$('coverage').textContent='Health check unavailable.';});
+    $('planner').addEventListener('submit',async event=>{
+      event.preventDefault(); $('submit').disabled=true; $('submit').textContent='Planning your route…'; $('error').textContent=''; $('status').textContent='Finding your route and comparing local fuel prices…';
+      if(layers) layers.clearLayers(); ['distance','duration','fuel','cost'].forEach(id=>$(id).textContent='—'); $('stop-section').classList.add('hidden');
+      const controller = new AbortController(), timer = setTimeout(()=>controller.abort(),90000);
+      try {
+        const response = await fetch('/api/v1/route/plan/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({start:$('start').value,finish:$('finish').value}),signal:controller.signal});
+        const data = await response.json();
+        if(!response.ok) {
+          const error = data.error || {}, details = error.details && Object.keys(error.details).length ? ' '+JSON.stringify(error.details) : '';
+          throw new Error((error.message || 'Request failed')+' ('+(error.code || response.status)+')'+details);
+        }
+        if(layers) {
+          layers.clearLayers();
+          L.geoJSON(data.route.geometry,{style:{color:'#176c50',weight:5,opacity:.9}}).addTo(layers);
+          marker(data.route.origin,'A','start','<b>Starting point</b><br>'+escapeHTML(data.route.origin.address));
+          marker(data.route.destination,'B','end','<b>Destination</b><br>'+escapeHTML(data.route.destination.address));
+          data.fuel_stops.forEach(stop=>marker(stop,stop.sequence,'stop','<b>'+escapeHTML(stop.name)+'</b><br>'+escapeHTML(stop.address)+', '+escapeHTML(stop.city)+', '+escapeHTML(stop.state)+'<br>$'+priceText(stop.retail_price_usd_per_gallon)+'/gal<br>Outgoing leg: '+money(stop.estimated_leg_cost_usd)+'<br>Approximate Census place location'));
+          map.fitBounds(layers.getBounds(),{padding:[32,32]});
+        }
+        $('distance').textContent=data.route.distance_miles.toFixed(1); $('duration').textContent=(data.route.duration_minutes/60).toFixed(1); $('fuel').textContent=data.fuel_summary.total_fuel_consumed_gallons.toFixed(2); $('cost').textContent=money(data.fuel_summary.estimated_total_fuel_cost_usd);
+        $('status').textContent='Plan ready · '+data.fuel_stops.length+' fuel stop'+(data.fuel_stops.length===1?'':'s')+(data.optimization.route_cache_hit?' · cached route':'');
+        const departure = data.fuel_summary.departure_price_source;
+        $('stops').innerHTML='<article class="stop-card"><h3>Departure fuel · '+money(data.fuel_summary.departure_fuel_value_usd)+'</h3><p>Inventory valued at $'+priceText(departure.retail_price_usd_per_gallon)+'/gal.</p><p>Price reference: '+escapeHTML(departure.name)+' · '+escapeHTML(departure.city)+', '+escapeHTML(departure.state)+'</p><p>Price proxy; this is not an additional driving stop.</p></article>'+data.fuel_stops.map(stop=>'<article class="stop-card"><h3>'+stop.sequence+'. '+escapeHTML(stop.name)+'</h3><p>'+escapeHTML(stop.address)+'<br>'+escapeHTML(stop.city)+', '+escapeHTML(stop.state)+'</p><p>$'+priceText(stop.retail_price_usd_per_gallon)+'/gal · Mile '+stop.route_offset_miles.toFixed(1)+'</p><p>Outgoing leg: '+stop.estimated_leg_distance_miles.toFixed(1)+' mi · '+money(stop.estimated_leg_cost_usd)+'</p><p>Approximate place location</p></article>').join('');
+        $('stop-section').classList.remove('hidden');
+      } catch(error) { $('error').textContent=error.name==='AbortError'?'Request timed out. Please try again.':error.message; $('status').textContent='The new trip could not be planned.'; }
+      finally {clearTimeout(timer);$('submit').disabled=false;$('submit').textContent='Find my fuel stops ↗';}
+    });
+  </script>
+</body>
+</html>
