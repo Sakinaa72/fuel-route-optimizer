@@ -17,7 +17,7 @@ The initial no-file launch accurately reported no fuel data and returned 503
 `fuel_data_missing`. The private runtime file was then saved through the Dashboard.
 Import logs recorded 8,151 source rows, 8,125 loaded, 26 duplicates, zero updated/skipped/
 invalid, 7,033 approximate and 1,092 unresolved. Both public route examples passed
-the HTTP/source-price/coordinate/leg-cost audit. Full suites: 112 passed locally and
+the HTTP/source-price/coordinate/leg-cost audit. Full suites: 116 passed locally and
 on both Docker backends. Production-profile `check --deploy` reported zero issues.
 
 The Render deployment validator rejected `maxShutdownDelaySeconds` on a free service,
@@ -63,7 +63,7 @@ are supplied. Successful route/geocoding caches persist in PostgreSQL.
 | `WEB_CONCURRENCY` | `1` for the free service; two threads |
 | `AUTO_INITIALIZE_DATA` | `true` |
 | `REFRESH_FUEL_PRICES` | `false` |
-| `FUEL_CSV_PATH` | `/etc/secrets/fuel-prices-for-be-assessment.csv` |
+| `FUEL_CSV_PATH` | `/etc/secrets/fuel-prices-for-be-assessment.csv.gz.b64` |
 | `GEOCODING_ENABLED` | `false` unless deliberately configured with an identifying User-Agent |
 | `OSRM_BASE_URL` | `https://router.project-osrm.org` or a compatible hosted provider |
 | Health-check path | `/api/v1/health/` |
@@ -74,19 +74,31 @@ are supplied. Successful route/geocoding caches persist in PostgreSQL.
 The source CSV is **not authorized for redistribution**. Do not commit it, put rows in
 source/configuration/logs, or bake it into an image.
 
+Prepare the private transport file locally (the source CSV remains unchanged):
+
+```bash
+python scripts/prepare_render_csv.py
+```
+
 In the correct Render workspace and service:
 
 1. Open **Environment → Secret Files → Add Secret File**.
-2. Set filename to `fuel-prices-for-be-assessment.csv`.
-3. Paste the original file into **Contents** using the secure Dashboard form. Do not
+2. Set filename to `fuel-prices-for-be-assessment.csv.gz.b64`.
+3. Paste the generated ignored `var/fuel-prices-for-be-assessment.csv.gz.b64` into
+   **Contents** using the secure Dashboard form. Do not
    send passwords, connection URLs, signing keys or the file contents in chat.
-4. Save/redeploy. The configured path is `/etc/secrets/fuel-prices-for-be-assessment.csv`.
+4. Save/redeploy. The configured path is `/etc/secrets/fuel-prices-for-be-assessment.csv.gz.b64`.
 5. Verify health: 8,125 records, 7,033 approximate coordinates, 1,092 unresolved,
    `ready_to_plan=true`. The original 8,151 rows contain 26 exact duplicates.
 
-The file is 577,081 bytes, below Render's combined 1 MB secret-file limit. Secret files
-are available to a running Docker service under `/etc/secrets/`; the build script never
-reads them. If no file has been uploaded, the application starts with an accurate
+The original file is 577,081 bytes. Although it fits Render's combined 1 MB limit,
+an actual Docker rebuild rejected it because each build secret is limited to 500 KiB.
+Gzip/base64 encoding reduces this private file to **232,748 bytes**. The importer
+decodes it in memory at runtime; decoded bytes are identical to the original. This is
+encoding/compression, not encryption; keep the generated file private. Plain local
+CSV imports still work. Secret files are available under `/etc/secrets/`; the build
+script never reads them or adds them to image layers. If no file has been uploaded,
+the application starts with an accurate
 `fuel_dataset_loaded=false` / `ready_to_plan=false` status and route planning returns
 `fuel_data_missing` (503). A live HTML or health response is not proof of ready fuel data.
 

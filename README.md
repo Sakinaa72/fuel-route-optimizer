@@ -334,7 +334,7 @@ required expensive bridge stops and infeasible gaps. A randomized exhaustive pat
 oracle checks small DAGs. Call-count/cache tests and an 8,151-record **synthetic** search
 test prevent station-by-station network activity. Every test has live HTTP disabled.
 The supplied-CSV integration test ran successfully with all 8,151 rows. The current
-suite has **112 passing tests and no skips** locally and in SQLite/PostgreSQL Docker.
+suite has **116 passing tests and no skips** locally and in SQLite/PostgreSQL Docker.
 CI omits the private dataset and legitimately skips its supplied-CSV test.
 
 After local import, audit a running local or public deployment without printing source rows:
@@ -407,7 +407,8 @@ this local assessment repository.
 uses `DATABASE_URL` when configured, adds Render's actual hostname/HTTPS origin, serves
 collected static files through WhiteNoise and binds Gunicorn to the platform `PORT`.
 The source CSV and row-level previews remain excluded from Git and image layers. Upload
-the authorized runtime copy privately under `/etc/secrets/fuel-prices-for-be-assessment.csv`;
+the authorized runtime copy privately under `/etc/secrets/fuel-prices-for-be-assessment.csv.gz.b64`
+after running `python scripts/prepare_render_csv.py`;
 `AUTO_INITIALIZE_DATA=true` migrates and initializes empty data safely. A missing file
 produces an actionable data-not-ready state; a populated database is preserved.
 

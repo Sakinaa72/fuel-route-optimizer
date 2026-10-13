@@ -11,6 +11,7 @@ from django.utils import timezone
 
 from fuel_optimizer.models import CityCoordinate, FuelStation
 from fuel_optimizer.services.locations import normalize_city, normalize_state
+from fuel_optimizer.services.price_files import open_price_csv
 
 COLUMNS = ["OPIS Truckstop ID", "Truckstop Name", "Address", "City", "State", "Rack ID", "Retail Price"]
 CANADIAN_PROVINCES = {"AB", "BC", "MB", "NB", "NL", "NS", "NT", "NU", "ON", "PE", "QC", "SK", "YT"}
@@ -44,7 +45,7 @@ class Command(BaseCommand):
             raise CommandError("No local places loaded. Run python manage.py prepare_locations first.")
         records, invalid, duplicates, row_count, unresolved = {}, [], 0, 0, []
         try:
-            with path.open(encoding="utf-8-sig", newline="") as stream:
+            with open_price_csv(path) as stream:
                 reader = csv.DictReader(stream)
                 if not reader.fieldnames or not set(COLUMNS).issubset(reader.fieldnames):
                     raise CommandError("CSV must contain columns: " + ", ".join(COLUMNS))
@@ -111,7 +112,7 @@ class Command(BaseCommand):
                             )
                     except (ValueError, InvalidOperation) as exc:
                         invalid.append((line, str(exc)))
-        except (OSError, UnicodeError, csv.Error) as exc:
+        except (OSError, UnicodeError, csv.Error, ValueError, EOFError) as exc:
             raise CommandError("CSV could not be read. Existing station data was preserved.") from exc
         if invalid:
             self.stderr.write(f"Invalid rows: {len(invalid)}. First errors: {invalid[:10]}")

@@ -1,3 +1,4 @@
+import base64
 import csv
 import io
 import json
@@ -10,6 +11,7 @@ from django.core.management.base import CommandError
 from fuel_optimizer.management.commands.load_fuel_prices import COLUMNS
 from fuel_optimizer.models import CityCoordinate, FuelStation
 from fuel_optimizer.services.locations import normalize_city, normalize_place_city, normalize_state
+from fuel_optimizer.services.price_files import encode_runtime_csv, open_price_csv
 
 pytestmark = pytest.mark.django_db
 
@@ -33,6 +35,38 @@ def load(path, tmp_path, **kwargs):
         **kwargs,
     )
     return json.loads(output.getvalue())
+
+
+def test_large_csv_fits_private_docker_secret_without_changing_bytes(tmp_path):
+    raw = ("Truckstop,City,Price\r\n" * 30000).encode()
+    assert len(raw) > 500 * 1024
+    encoded = encode_runtime_csv(raw)
+    assert len(encoded) < 500 * 1024
+    path = tmp_path / "private.csv.gz.b64"
+    path.write_bytes(encoded)
+    with open_price_csv(path) as stream:
+        assert stream.read().encode() == raw
+
+
+def test_encoded_runtime_csv_import_preserves_prices_and_idempotency(places, tmp_path):
+    plain = write_csv(tmp_path, [["7", "Synthetic café", "Fixture road", "Austin", "TX", "", "3.12345678"]])
+    encoded = tmp_path / "private.csv.gz.b64"
+    encoded.write_bytes(encode_runtime_csv(plain.read_bytes()))
+    assert load(encoded, tmp_path)["loaded"] == 1
+    station = FuelStation.objects.get()
+    assert station.name == "Synthetic café" and station.retail_price == Decimal("3.12345678")
+    assert load(encoded, tmp_path)["skipped"] == 1
+    assert FuelStation.objects.get().pk == station.pk
+
+
+@pytest.mark.parametrize("contents", [b"not-valid-base64!", base64.b64encode(b"not a gzip file")])
+def test_invalid_encoded_runtime_file_preserves_existing(places, station_factory, tmp_path, contents):
+    old = station_factory()
+    encoded = tmp_path / "private.csv.gz.b64"
+    encoded.write_bytes(contents)
+    with pytest.raises(CommandError, match="preserved"):
+        load(encoded, tmp_path)
+    assert FuelStation.objects.get().pk == old.pk
 
 
 def test_duplicate_source_ids_preserve_distinct_prices_and_records(places, tmp_path):

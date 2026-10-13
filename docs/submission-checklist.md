@@ -11,7 +11,7 @@
 - [x] Run migrations, Census preprocessing and strict import locally and in a fresh container DB.
 - [x] Record counts: 8,125 imported, 26 exact duplicates, 0 rejected; 7,033 approximate / 1,092 unresolved.
 - [x] Verify idempotent reimport: 0 new, 0 updated, 8,125 unchanged.
-- [x] Run the full suite and checks: 112 tests passed, no skips locally and on SQLite/PostgreSQL Docker; Ruff and Django checks passed.
+- [x] Run the full suite and checks: 116 tests passed, no skips locally and on SQLite/PostgreSQL Docker; Ruff and Django checks passed.
 - [x] Verify the production settings profile with `check --deploy`: zero issues.
 - [x] Run discovery and independent live audit; verify Austin–Dallas and Miami–Ellensburg with real prices.
 - [x] Validate the collection and execute all six request bodies against actual HTTP endpoints.

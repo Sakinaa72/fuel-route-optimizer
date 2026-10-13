@@ -160,11 +160,22 @@ also includes DATABASE_URL/driver validation, startup advisory locking, WhiteNoi
 exact hostname/HTTPS origin, proxy handling, production error redaction, and honest
 missing-data/database-unavailable states; each behavior has regression coverage.
 
+A later auto-deploy failed before image build because Docker's per-secret file limit
+is **500 KiB**, below the plain CSV's 577,081 bytes. The previous healthy deployment
+remained live. The runtime secret is now gzip/base64 encoded (**232,748 bytes**), read
+and decoded only in memory by the importer. The decoded bytes exactly match the
+original SHA256. Real encoded reimports in local SQLite and Docker PostgreSQL produced 0 new / 0 updated / 8,125
+unchanged / 26 duplicates / 0 rejected. Regression tests cover an over-500-KiB source,
+exact byte restoration, full-precision import/idempotency and invalid archive rollback.
+Plain local CSV imports remain supported. Both representations are excluded from Git
+and Docker contexts. CI now collects static files before tests, fixing the earlier
+missing-static-directory warnings without suppressing them.
+
 Actual final checks:
 
-- Local full suite: **112 passed, zero skipped**, 2.11 s.
-- SQLite Docker full suite: **112 passed, zero skipped**, 1.85 s.
-- PostgreSQL 16 Docker full suite: **112 passed, zero skipped**, 2.48 s.
+- Local full suite: **116 passed, zero skipped**, 2.15 s.
+- SQLite Docker full suite: **116 passed, zero skipped**, 1.89 s.
+- PostgreSQL 16 Docker full suite: **116 passed, zero skipped**, 2.53 s.
 - Ruff check and format check passed; Django check reported zero issues.
 - Production-profile PostgreSQL `manage.py check --deploy` reported zero issues.
 - Migrations ran; `makemigrations --check --dry-run` reported no changes.

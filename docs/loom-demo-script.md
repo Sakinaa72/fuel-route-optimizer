@@ -26,12 +26,12 @@ The verified public base URL is `https://fuel-route-optimizer-edcq.onrender.com`
 Use its `/demo/`, `/docs/` and `/api/v1/health/` pages for the hosted demonstration.
 Warm the free service before recording. Keep the simulated timeout example local;
 production DEBUG remains false. CI has a legitimate private-dataset skip, while the
-local and Docker suites pass all 112 tests with the original CSV available.
+local and Docker suites pass all 116 tests with the original CSV available.
 
 Verified rehearsal data: health has **8,125 records / 7,033 located / 1,092 unresolved**.
 Use **Austin, TX → Dallas, TX** (195.9715 miles; 3 stops; 19.5971 gallons; $54.55),
 then **Miami, FL → Ellensburg, WA** (3,196.5477 miles; 15 stops; 319.6548 gallons;
-$978.35). The longest modeled long-route leg is 475.5369 miles. Show **112 passing
+$978.35). The longest modeled long-route leg is 475.5369 miles. Show **116 passing
 tests with no skips**. Explain the 26 exact duplicates and preserved eight-decimal
 prices briefly; omit detailed code scrolling to stay within the five-minute window.
 The initial inventory value is included ($17.63 on the long route), and the final

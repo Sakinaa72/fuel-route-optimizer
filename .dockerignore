@@ -9,6 +9,7 @@ var
 staticfiles
 *.sqlite3*
 data/fuel-prices-for-be-assessment.csv
+*.csv.gz.b64
 data/geographic/raw
 data/geographic/us-states.geojson
 data/geographic/manifest.json

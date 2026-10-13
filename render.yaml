@@ -43,7 +43,7 @@ services:
       - key: REFRESH_FUEL_PRICES
         value: "false"
       - key: FUEL_CSV_PATH
-        value: /etc/secrets/fuel-prices-for-be-assessment.csv
+        value: /etc/secrets/fuel-prices-for-be-assessment.csv.gz.b64
       - key: GEOCODING_ENABLED
         value: "false"
       - key: OSRM_BASE_URL
