@@ -7,7 +7,8 @@
    when coverage or routing is insufficient. It never seeds prices or invents successes.
 3. Import `fuel-route-optimizer.postman_collection.json` and the generated
    `var/postman-verified.postman_environment.json`. Select the environment.
-4. Set `base_url` if the server is elsewhere. Run health, short route, long route,
+4. Set `base_url=https://fuel-route-optimizer-edcq.onrender.com` for the verified public
+   deployment, or retain localhost for Docker. Run health, short route, long route,
    missing-input and unsupported-location requests. Show `fuel_summary.legs`: the sum
    includes departure inventory and the last leg. Route coordinates are GeoJSON lon/lat.
 5. The timeout request requires `DJANGO_DEBUG=true` and `ENABLE_FAILURE_DEMO=true`, then

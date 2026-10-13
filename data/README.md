@@ -22,7 +22,7 @@ python manage.py prepare_locations
 python manage.py load_fuel_prices --csv data/fuel-prices-for-be-assessment.csv
 ```
 
-The source's redistribution terms are unknown, so `.gitignore` and `.dockerignore`
+The source is not authorized for redistribution, so `.gitignore` and `.dockerignore`
 exclude it. An evaluator must provide it separately unless the assignment owner
 explicitly permits redistribution. Never replace it with the synthetic test fixtures.
 

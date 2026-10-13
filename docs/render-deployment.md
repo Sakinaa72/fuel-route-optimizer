@@ -4,6 +4,31 @@ The existing Django API runs as a Docker web service with a separate managed
 PostgreSQL database. `render.yaml` specifies **free** plans only and the same Virginia
 region for both resources. Local Compose continues to use persistent SQLite.
 
+Verified on **14 October 2026** in the user-approved **Sakina** workspace:
+[demo](https://fuel-route-optimizer-edcq.onrender.com/demo/),
+[Swagger](https://fuel-route-optimizer-edcq.onrender.com/docs/),
+[health](https://fuel-route-optimizer-edcq.onrender.com/api/v1/health/).
+The source is [Sakinaa72/fuel-route-optimizer](https://github.com/Sakinaa72/fuel-route-optimizer).
+Blueprint `exs-db79gqt9fdbs73dcb870` created free web service
+`srv-db79hk7avr4c73fd9800` and free PostgreSQL 16 database
+`dpg-db79havavr4c73fd8la0-a`. The database dashboard reports expiry on **13 November 2026**.
+
+The initial no-file launch accurately reported no fuel data and returned 503
+`fuel_data_missing`. The private runtime file was then saved through the Dashboard.
+Import logs recorded 8,151 source rows, 8,125 loaded, 26 duplicates, zero updated/skipped/
+invalid, 7,033 approximate and 1,092 unresolved. Both public route examples passed
+the HTTP/source-price/coordinate/leg-cost audit. Full suites: 112 passed locally and
+on both Docker backends. Production-profile `check --deploy` reported zero issues.
+
+The Render deployment validator rejected `maxShutdownDelaySeconds` on a free service,
+although the general JSON schema accepted it. The setting was removed and covered
+by a regression test. Gunicorn's 25-second graceful timeout fits the default platform
+window. No paid plan was selected.
+
+An earlier free database was created through the connector in Shyan's workspace before
+the user selected Sakina's Dashboard account. It was left untouched and is not used by
+this application. No credentials or private data were transferred to that database.
+
 ## Initialization and persistence
 
 The image contains only code, collected static files and public US Census archives /

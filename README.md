@@ -12,6 +12,12 @@ US places). Austin–Dallas and Miami–Ellensburg plans were verified against r
 and live OSRM. See `docs/verification.md` for evidence and remaining limitations. Production deployment
 configuration and secure dataset setup are in `docs/render-deployment.md`.
 
+Verified public deployment: [demo](https://fuel-route-optimizer-edcq.onrender.com/demo/),
+[Swagger](https://fuel-route-optimizer-edcq.onrender.com/docs/),
+[health](https://fuel-route-optimizer-edcq.onrender.com/api/v1/health/).
+The real dataset is loaded in managed PostgreSQL; both example routes passed the public
+HTTP audit on 14 October 2026. Free PostgreSQL expires on **13 November 2026**.
+
 ## Local setup
 
 Requires Python 3.13 (3.12+ is supported by Django; this project's lock was exercised
@@ -307,8 +313,9 @@ approximate stations and unknown access roads. Verify access/range before real t
   attribution when changing provider. Leaflet 1.9.4 is loaded from a versioned CDN.
 
 Typical external requests: cached plan **0**; new city/coordinate route **1 OSRM**;
-new full-address pair **<=2 geocoding + 1 OSRM**. Geographic downloads happen only
-during the explicit preprocessing command. Unit tests verify these counts.
+new full-address pair **<=2 geocoding + 1 OSRM**. Geographic downloads happen during
+image builds or explicit local preprocessing, never during a plan request. Live adapter
+counters and automated tests verify these counts.
 
 ## Tests and verification
 
@@ -327,7 +334,18 @@ required expensive bridge stops and infeasible gaps. A randomized exhaustive pat
 oracle checks small DAGs. Call-count/cache tests and an 8,151-record **synthetic** search
 test prevent station-by-station network activity. Every test has live HTTP disabled.
 The supplied-CSV integration test ran successfully with all 8,151 rows. The current
-suite has **111 passing tests and no skips** locally and in Docker.
+suite has **112 passing tests and no skips** locally and in SQLite/PostgreSQL Docker.
+CI omits the private dataset and legitimately skips its supplied-CSV test.
+
+After local import, audit a running local or public deployment without printing source rows:
+
+```bash
+python scripts/verify_http_api.py --base-url https://fuel-route-optimizer-edcq.onrender.com
+```
+
+This verifies HTTP behavior, source-exact prices, Census coordinates, geometry, leg
+limits, reconciled totals, invalid inputs and cache reuse. The separate live Django
+audit above verifies the unrounded optimum and exact external adapter call counts.
 
 See `docs/verification.md` for actual results and live-provider checks. The Leaflet demo
 and documentation can load without price data; successful planning needs the original
@@ -342,23 +360,22 @@ The optional local timeout demonstration is clearly labeled, disabled by default
 cannot be enabled when DEBUG is false.
 
 The original CSV remains byte-identical and ignored because redistribution permission
-was not supplied. Its presence alone does not establish permission to publish it. There
-are no committed credentials, local databases, virtual environments or downloaded
-archives. No GitHub remote was configured, so nothing has been pushed.
+was not supplied. Its presence alone does not establish permission to publish it. There are no committed credentials, local databases, virtual environments, private
+previews or downloaded archives. The source is published at
+[GitHub](https://github.com/Sakinaa72/fuel-route-optimizer).
 
-After reviewing and confirming the dataset's terms, publish yourself:
+For subsequent reviewed source updates, keep the private dataset excluded:
 
 ```bash
 git status --short
 git add .
 git diff --cached --stat
-git commit -m "Implement Django fuel route optimizer"
-# Create your repository in GitHub, then replace YOUR_GITHUB_REPOSITORY_URL below:
-git remote add origin YOUR_GITHUB_REPOSITORY_URL
-git push -u origin main
+git diff --cached --check
+git commit -m "Describe the reviewed change"
+git push origin main
 ```
 
-Fill in the actual GitHub and Loom URLs in the checklist after each succeeds. Rehearse
+The actual GitHub and application URLs are in the checklist. Rehearse
 the five-minute script using verified routes, then record and upload the Loom yourself.
 
 ## Limits and next production steps
@@ -398,3 +415,10 @@ See [the Render runbook](docs/render-deployment.md) for the complete environment
 private-file upload, initialization, PostgreSQL compatibility test and free-plan limits.
 Free Postgres expires after 30 days; free web instances can sleep after 15 idle minutes.
 The service must pass a real price-backed route request before being advertised as ready.
+
+Current public-hosting status: **live and verified** at
+https://fuel-route-optimizer-edcq.onrender.com in the approved Sakina workspace.
+The free PostgreSQL 16 database is wired through the Blueprint's internal connection
+reference. The original CSV was uploaded privately as a runtime secret file; import
+logs and public health agree on 8,125 records / 7,033 located / 1,092 unresolved.
+No CSV, credentials, local database or row-level preview was published to GitHub.
